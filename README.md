@@ -1,12 +1,30 @@
 # H2S Corrosion Prediction System
 
-Machine learning-based prediction system for hydrogen sulfide (H2S) induced corrosion in oil and gas pipelines.
+Machine learning-based prediction system for hydrogen sulfide (H2S) induced corrosion in oil and gas pipelines using survival analysis and ensemble methods.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Survival Analysis | **scikit-survival** - survival models |
+| Survival Modeling | **lifelines** - Kaplan-Meier, Cox PH |
+| Data Processing | pandas, numpy, joblib |
+| Web Server | **FastAPI** + uvicorn |
+| Monitoring | prometheus-fastapi-instrumentator |
+| Validation | pydantic v2 |
+| Visualization | matplotlib, seaborn |
+
+### Key Libraries
+- scikit-survival - Survival analysis for corrosion prediction
+- lifelines - Kaplan-Meier and Cox proportional hazards
+- FastAPI - Modern async web framework
+- pandas / numpy - Data processing
 
 ## Overview
 
-This project uses ensemble ML models to predict:
+This project uses ensemble ML models and survival analysis to predict:
 - **Corrosion rate** (mpy) using Gradient Boosting Regression
-- **Remaining useful life** (years) using Random Forest Regression
+- **Remaining useful life** (years) using survival analysis models
 
 ## Features
 
@@ -85,4 +103,6 @@ h2s-corrosion-prediction/
 └── setup.py
 ```
 
-## Elaborado por Ing. Kelvin Cabrera
+---
+
+Elaborado por Ing. Kelvin Cabrera
