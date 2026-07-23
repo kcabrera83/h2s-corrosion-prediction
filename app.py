@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -20,6 +21,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Instrumentator().instrument(app).expose(app)
 
 MODEL_DIR = os.path.join("outputs", "models")
 
@@ -153,3 +156,4 @@ async def life(request: CorrosionRequest):
         return LifeResponse(remaining_useful_life_years=round(life_years, 2), status="ok")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
