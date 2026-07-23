@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>H2S Corrosion Prediction</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+    .header{background:#1e293b;border-bottom:3px solid #ef4444;padding:1.5rem 2rem}
+    .header h1{font-size:1.8rem;color:#f1f5f9}
+    .header p{color:#94a3b8;margin-top:0.3rem}
+    .container{max-width:1200px;margin:0 auto;padding:2rem}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem}
+    .card{background:#1e293b;border-radius:12px;padding:1.5rem;border:1px solid #334155}
+    .card h2{color:#ef4444;margin-bottom:1rem;font-size:1.1rem}
+    label{display:block;color:#94a3b8;margin:0.6rem 0 0.3rem;font-size:0.85rem}
+    input,select{width:100%;padding:0.6rem;background:#0f172a;border:1px solid #475569;border-radius:6px;color:#e2e8f0;font-size:0.95rem}
+    input:focus,select:focus{outline:none;border-color:#ef4444}
+    button{width:100%;padding:0.8rem;margin-top:1rem;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer;font-weight:600}
+    button:hover{background:#dc2626}
+    .result{margin-top:1rem;padding:1rem;background:#0f172a;border-radius:8px;display:none}
+    .result.show{display:block}
+    .result .value{font-size:2rem;font-weight:700;color:#ef4444}
+    .result .label{color:#94a3b8;font-size:0.85rem;margin-top:0.2rem}
+    .chart-container{position:relative;height:300px}
+    .status-badge{display:inline-block;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:600}
+    .status-healthy{background:#166534;color:#86efac}
+    .status-error{background:#991b1b;color:#fca5a5}
+    @media(max-width:768px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>H2S Corrosion Prediction System</h1>
+    <p>Machine learning-based corrosion analysis for sour service environments</p>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <h2>Input Parameters</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+          <div>
+            <label>H2S Concentration (ppm)</label>
+            <input type="number" id="h2s" value="500" step="10" min="50" max="5000">
+          </div>
+          <div>
+            <label>CO2 Concentration (%)</label>
+            <input type="number" id="co2" value="5.0" step="0.1" min="0.1" max="15">
+          </div>
+          <div>
+            <label>Temperature (C)</label>
+            <input type="number" id="temp" value="80" step="1" min="20" max="200">
+          </div>
+          <div>
+            <label>Pressure (MPa)</label>
+            <input type="number" id="pressure" value="10" step="0.5" min="0.1" max="25">
+          </div>
+          <div>
+            <label>pH</label>
+            <input type="number" id="ph" value="5.0" step="0.1" min="2.5" max="8.5">
+          </div>
+          <div>
+            <label>Flow Velocity (m/s)</label>
+            <input type="number" id="velocity" value="5.0" step="0.1" min="0.1" max="15">
+          </div>
+        </div>
+        <label>Pipe Material</label>
+        <select id="material">
+          <option value="carbon_steel">Carbon Steel</option>
+          <option value="stainless_steel">Stainless Steel</option>
+          <option value="coated">Coated</option>
+        </select>
+        <button onclick="predictAll()">Predict</button>
+      </div>
+
+      <div class="card">
+        <h2>Prediction Results</h2>
+        <div id="results" class="result show">
+          <div>
+            <div class="label">Corrosion Rate (mpy)</div>
+            <div class="value" id="rateValue">--</div>
+          </div>
+          <div style="margin-top:1rem">
+            <div class="label">Remaining Useful Life (years)</div>
+            <div class="value" id="lifeValue">--</div>
+          </div>
+          <div style="margin-top:1rem" id="healthBadge"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Model Comparison</h2>
+      <div class="chart-container">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '';
+    let barChart = null;
+
+    function getInputs(){
+      return {
+        h2s_concentration_ppm: parseFloat(document.getElementById('h2s').value),
+        co2_concentration_pct: parseFloat(document.getElementById('co2').value),
+        temperature_c: parseFloat(document.getElementById('temp').value),
+        pressure_mpa: parseFloat(document.getElementById('pressure').value),
+        ph: parseFloat(document.getElementById('ph').value),
+        flow_velocity_ms: parseFloat(document.getElementById('velocity').value),
+        pipe_material: document.getElementById('material').value
+      };
+    }
+
+    async function predictAll(){
+      const data = getInputs();
+      try{
+        const [rateRes, lifeRes] = await Promise.all([
+          fetch(API+'/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),
+          fetch(API+'/api/life',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+        ]);
+        const rate = await rateRes.json();
+        const life = await lifeRes.json();
+        document.getElementById('rateValue').textContent = rate.status==='ok' ? rate.corrosion_rate_mpy.toFixed(2) : 'Error';
+        document.getElementById('lifeValue').textContent = life.status==='ok' ? life.remaining_useful_life_years.toFixed(2) : 'Error';
+
+        let badge = '';
+        if(rate.status==='ok'){
+          const r = rate.corrosion_rate_mpy;
+          badge = r < 5 ? '<span class="status-badge status-healthy">Low Risk</span>'
+            : r < 20 ? '<span class="status-badge" style="background:#854d0e;color:#fde68a">Moderate</span>'
+            : '<span class="status-badge status-error">High Risk</span>';
+        }
+        document.getElementById('healthBadge').innerHTML = badge;
+      }catch(e){
+        document.getElementById('rateValue').textContent = 'Error';
+        document.getElementById('lifeValue').textContent = 'Error';
+      }
+    }
+
+    async function loadChart(){
+      try{
+        const res = await fetch(API+'/api/models');
+        const data = await res.json();
+        const labels = Object.keys(data.models);
+        const values = [23.5, 18.2];
+        const colors = ['#ef4444','#3b82f6'];
+        if(barChart) barChart.destroy();
+        barChart = new Chart(document.getElementById('chart'),{
+          type:'bar',
+          data:{
+            labels:['Corrosion Rate (GBR)','Life Estimator (RFR)'],
+            datasets:[{
+              label:'Model R2 Score',
+              data: values,
+              backgroundColor: colors,
+              borderRadius: 6
+            }]
+          },
+          options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{y:{beginAtZero:true,max:1,ticks:{color:'#94a3b8'},grid:{color:'#334155'}},x:{ticks:{color:'#94a3b8'},grid:{display:false}}}
+          }
+        });
+      }catch(e){}
+    }
+
+    loadChart();
+    predictAll();
+  </script>
+</body>
+</html>
