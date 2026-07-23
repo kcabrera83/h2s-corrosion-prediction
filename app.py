@@ -89,9 +89,13 @@ async def load_models():
             if f == "pipeline.pkl":
                 pipeline = obj
             elif "gbr" in f:
-                predictor_model = obj
+                from h2s_corrosion.models.corrosion_predictor import CorrosionPredictor
+                predictor_model = CorrosionPredictor()
+                predictor_model.model = obj
             elif "rfr" in f:
-                estimator_model = obj
+                from h2s_corrosion.models.life_estimator import LifeEstimator
+                estimator_model = LifeEstimator()
+                estimator_model.model = obj
     except Exception as e:
         print(f"[WARN] Error loading models: {e}")
 
@@ -147,7 +151,8 @@ async def models_info():
 async def predict(request: CorrosionRequest):
     try:
         X = _transform_input(request.model_dump())
-        rate = float(predictor_model.predict(X)[0])
+        median_times = predictor_model.predict_median_survival(X)
+        rate = float(median_times[0]) if median_times else 0.0
         return CorrosionResponse(corrosion_rate_mpy=round(rate, 2), status="ok")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
