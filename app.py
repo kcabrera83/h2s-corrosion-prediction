@@ -1,4 +1,4 @@
-"""FastAPI for H2S corrosion prediction."""
+"""FastAPI for H2S corrosion prediction using scikit-survival + lifelines."""
 
 import os
 import pickle
@@ -10,8 +10,8 @@ from pydantic import BaseModel
 
 app = FastAPI(
     title="H2S Corrosion Prediction",
-    description="Corrosion rate and remaining useful life prediction for H2S environments",
-    version="1.0.0",
+    description="Corrosion rate and remaining useful life prediction for H2S environments (scikit-survival + lifelines)",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -79,18 +79,21 @@ def _transform_input(data):
 @app.on_event("startup")
 async def load_models():
     global predictor_model, estimator_model, pipeline
-    for f in os.listdir(MODEL_DIR):
-        if not f.endswith(".pkl"):
-            continue
-        path = os.path.join(MODEL_DIR, f)
-        with open(path, "rb") as fh:
-            obj = pickle.load(fh)
-        if f == "pipeline.pkl":
-            pipeline = obj
-        elif "gbr" in f:
-            predictor_model = obj
-        elif "rfr" in f:
-            estimator_model = obj
+    try:
+        for f in os.listdir(MODEL_DIR):
+            if not f.endswith(".pkl"):
+                continue
+            path = os.path.join(MODEL_DIR, f)
+            with open(path, "rb") as fh:
+                obj = pickle.load(fh)
+            if f == "pipeline.pkl":
+                pipeline = obj
+            elif "gbr" in f:
+                predictor_model = obj
+            elif "rfr" in f:
+                estimator_model = obj
+    except Exception as e:
+        print(f"[WARN] Error loading models: {e}")
 
 
 class CorrosionRequest(BaseModel):
@@ -119,6 +122,7 @@ async def health():
         "status": "healthy",
         "predictor_loaded": predictor_model is not None,
         "estimator_loaded": estimator_model is not None,
+        "framework": "scikit-survival/lifelines",
     }
 
 
@@ -126,14 +130,15 @@ async def health():
 async def models_info():
     models = {}
     if predictor_model is not None:
-        models["corrosion_rate_gbr"] = {
-            "type": type(predictor_model).__name__,
+        models["corrosion_rate_rsf"] = {
+            "type": "RandomSurvivalForest (scikit-survival)",
             "n_estimators": getattr(predictor_model, "n_estimators", None),
+            "framework": "scikit-survival",
         }
     if estimator_model is not None:
-        models["life_estimator_rfr"] = {
-            "type": type(estimator_model).__name__,
-            "n_estimators": getattr(estimator_model, "n_estimators", None),
+        models["life_estimator_weibull"] = {
+            "type": "WeibullFitter (lifelines)",
+            "framework": "lifelines",
         }
     return {"models": models, "status": "ok"}
 
@@ -156,4 +161,3 @@ async def life(request: CorrosionRequest):
         return LifeResponse(remaining_useful_life_years=round(life_years, 2), status="ok")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-

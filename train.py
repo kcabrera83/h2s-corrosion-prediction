@@ -1,4 +1,4 @@
-"""Training script for H2S corrosion prediction models."""
+"""Training script for H2S corrosion prediction models using scikit-survival + lifelines."""
 
 import os
 import sys
@@ -18,16 +18,15 @@ MODEL_DIR = os.path.join("outputs", "models")
 def main():
     print("=" * 60)
     print("  H2S Corrosion Prediction - Model Training")
+    print("  Framework: scikit-survival + lifelines (Weibull)")
     print("=" * 60)
 
-    # Generate data
     print("\n[1/5] Generating synthetic corrosion data...")
     gen = CorrosionDataGenerator(seed=42)
     df = gen.generate(n_samples=3000)
     print(f"  Dataset shape: {df.shape}")
     print(f"  Columns: {list(df.columns)}")
 
-    # Preprocess
     print("\n[2/5] Preprocessing data...")
     preprocessor = CorrosionPreprocessor()
     X_train, X_test, y_train_c, y_test_c, pipeline = preprocessor.prepare(
@@ -39,8 +38,7 @@ def main():
     print(f"  Training samples: {X_train.shape[0]}")
     print(f"  Test samples: {X_test.shape[0]}")
 
-    # Train corrosion predictor
-    print("\n[3/5] Training GradientBoosting (corrosion rate)...")
+    print("\n[3/5] Training Random Survival Forest (corrosion rate)...")
     t0 = time.time()
     predictor = CorrosionPredictor()
     predictor.fit(X_train, y_train_c)
@@ -49,17 +47,18 @@ def main():
     for k, v in metrics_c.items():
         print(f"  {k.upper()}: {v}")
 
-    # Train life estimator
-    print("\n[4/5] Training RandomForest (remaining useful life)...")
+    print("\n[4/5] Training Weibull Analysis (remaining useful life)...")
     t0 = time.time()
     estimator = LifeEstimator()
-    estimator.fit(X_train, y_train_l)
-    _, metrics_l = estimator.evaluate(X_test, y_test_l)
+    estimator.fit(X_train_l, y_train_l)
+    _, metrics_l = estimator.evaluate(X_test_l, y_test_l)
     print(f"  Time: {time.time() - t0:.2f}s")
     for k, v in metrics_l.items():
         print(f"  {k.upper()}: {v}")
 
-    # Save models
+    wb_params = estimator.get_weibull_params()
+    print(f"  Weibull parameters: rho={wb_params.get('rho', 'N/A')}, lambda={wb_params.get('lambda_', 'N/A')}")
+
     print("\n[5/5] Saving models...")
     os.makedirs(MODEL_DIR, exist_ok=True)
     predictor.save(MODEL_DIR)
