@@ -130,6 +130,20 @@ def api_health():
     })
 
 
+@app.route("/api/docs", methods=["GET"])
+def api_docs():
+    return jsonify({
+        "openapi": "3.0.0",
+        "info": {"title": "H2S Corrosion Prediction", "version": "1.0.0"},
+        "paths": {
+            "/api/health": {"get": {"summary": "Health check"}},
+            "/api/models": {"get": {"summary": "Model info"}},
+            "/api/predict": {"post": {"summary": "Predict corrosion rate in mpy"}},
+            "/api/life": {"post": {"summary": "Estimate remaining useful life in years"}},
+        }
+    })
+
+
 if __name__ == "__main__":
     _load_models()
     app.run(host="0.0.0.0", port=5010, debug=True)
