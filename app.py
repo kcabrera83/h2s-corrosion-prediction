@@ -1,12 +1,25 @@
-"""Flask API for H2S corrosion prediction."""
+"""FastAPI for H2S corrosion prediction."""
 
 import os
 import pickle
-
 import numpy as np
-from flask import Flask, jsonify, render_template, request
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-app = Flask(__name__)
+app = FastAPI(
+    title="H2S Corrosion Prediction",
+    description="Corrosion rate and remaining useful life prediction for H2S environments",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MODEL_DIR = os.path.join("outputs", "models")
 
@@ -15,24 +28,7 @@ estimator_model = None
 pipeline = None
 
 
-def _load_models():
-    global predictor_model, estimator_model, pipeline
-    for f in os.listdir(MODEL_DIR):
-        if not f.endswith(".pkl"):
-            continue
-        path = os.path.join(MODEL_DIR, f)
-        with open(path, "rb") as fh:
-            obj = pickle.load(fh)
-        if f == "pipeline.pkl":
-            pipeline = obj
-        elif "gbr" in f:
-            predictor_model = obj
-        elif "rfr" in f:
-            estimator_model = obj
-
-
 def _build_pipeline():
-    """Rebuild pipeline from training config."""
     from sklearn.compose import ColumnTransformer
     from sklearn.pipeline import Pipeline
     from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -57,7 +53,6 @@ def _build_pipeline():
 
 
 def _transform_input(data):
-    """Transform a single sample dict into model-ready array."""
     import pandas as pd
 
     NUMERIC = [
@@ -78,35 +73,54 @@ def _transform_input(data):
     return pipe.fit_transform(df)
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+@app.on_event("startup")
+async def load_models():
+    global predictor_model, estimator_model, pipeline
+    for f in os.listdir(MODEL_DIR):
+        if not f.endswith(".pkl"):
+            continue
+        path = os.path.join(MODEL_DIR, f)
+        with open(path, "rb") as fh:
+            obj = pickle.load(fh)
+        if f == "pipeline.pkl":
+            pipeline = obj
+        elif "gbr" in f:
+            predictor_model = obj
+        elif "rfr" in f:
+            estimator_model = obj
 
 
-@app.route("/api/predict", methods=["POST"])
-def api_predict():
-    try:
-        data = request.get_json(force=True)
-        X = _transform_input(data)
-        rate = float(predictor_model.predict(X)[0])
-        return jsonify({"corrosion_rate_mpy": round(rate, 2), "status": "ok"})
-    except Exception as e:
-        return jsonify({"error": str(e), "status": "error"}), 400
+class CorrosionRequest(BaseModel):
+    h2s_concentration_ppm: float
+    co2_concentration_pct: float
+    temperature_c: float
+    pressure_mpa: float
+    ph: float
+    flow_velocity_ms: float
+    pipe_material: str
 
 
-@app.route("/api/life", methods=["POST"])
-def api_life():
-    try:
-        data = request.get_json(force=True)
-        X = _transform_input(data)
-        life = float(estimator_model.predict(X)[0])
-        return jsonify({"remaining_useful_life_years": round(life, 2), "status": "ok"})
-    except Exception as e:
-        return jsonify({"error": str(e), "status": "error"}), 400
+class CorrosionResponse(BaseModel):
+    corrosion_rate_mpy: float
+    status: str
 
 
-@app.route("/api/models", methods=["GET"])
-def api_models():
+class LifeResponse(BaseModel):
+    remaining_useful_life_years: float
+    status: str
+
+
+@app.get("/api/health")
+async def health():
+    return {
+        "status": "healthy",
+        "predictor_loaded": predictor_model is not None,
+        "estimator_loaded": estimator_model is not None,
+    }
+
+
+@app.get("/api/models")
+async def models_info():
     models = {}
     if predictor_model is not None:
         models["corrosion_rate_gbr"] = {
@@ -118,32 +132,24 @@ def api_models():
             "type": type(estimator_model).__name__,
             "n_estimators": getattr(estimator_model, "n_estimators", None),
         }
-    return jsonify({"models": models, "status": "ok"})
+    return {"models": models, "status": "ok"}
 
 
-@app.route("/api/health", methods=["GET"])
-def api_health():
-    return jsonify({
-        "status": "healthy",
-        "predictor_loaded": predictor_model is not None,
-        "estimator_loaded": estimator_model is not None,
-    })
+@app.post("/api/predict", response_model=CorrosionResponse)
+async def predict(request: CorrosionRequest):
+    try:
+        X = _transform_input(request.model_dump())
+        rate = float(predictor_model.predict(X)[0])
+        return CorrosionResponse(corrosion_rate_mpy=round(rate, 2), status="ok")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.route("/api/docs", methods=["GET"])
-def api_docs():
-    return jsonify({
-        "openapi": "3.0.0",
-        "info": {"title": "H2S Corrosion Prediction", "version": "1.0.0"},
-        "paths": {
-            "/api/health": {"get": {"summary": "Health check"}},
-            "/api/models": {"get": {"summary": "Model info"}},
-            "/api/predict": {"post": {"summary": "Predict corrosion rate in mpy"}},
-            "/api/life": {"post": {"summary": "Estimate remaining useful life in years"}},
-        }
-    })
-
-
-if __name__ == "__main__":
-    _load_models()
-    app.run(host="0.0.0.0", port=5010, debug=True)
+@app.post("/api/life", response_model=LifeResponse)
+async def life(request: CorrosionRequest):
+    try:
+        X = _transform_input(request.model_dump())
+        life_years = float(estimator_model.predict(X)[0])
+        return LifeResponse(remaining_useful_life_years=round(life_years, 2), status="ok")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

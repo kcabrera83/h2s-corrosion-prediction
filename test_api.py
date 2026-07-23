@@ -1,13 +1,12 @@
-"""API integration tests for H2S corrosion prediction Flask app."""
+"""API integration tests for H2S Corrosion Prediction FastAPI app."""
 
-import json
-import os
 import sys
-import time
+from fastapi.testclient import TestClient
 
-import requests
+sys.path.insert(0, ".")
+from app import app
 
-BASE = "http://127.0.0.1:5010"
+client = TestClient(app)
 
 SAMPLE = {
     "h2s_concentration_ppm": 1000,
@@ -21,7 +20,7 @@ SAMPLE = {
 
 
 def test_health():
-    r = requests.get(f"{BASE}/api/health")
+    r = client.get("/api/health")
     data = r.json()
     assert r.status_code == 200
     assert data["status"] == "healthy"
@@ -31,7 +30,7 @@ def test_health():
 
 
 def test_models():
-    r = requests.get(f"{BASE}/api/models")
+    r = client.get("/api/models")
     data = r.json()
     assert r.status_code == 200
     assert "models" in data
@@ -40,7 +39,7 @@ def test_models():
 
 
 def test_predict():
-    r = requests.post(f"{BASE}/api/predict", json=SAMPLE)
+    r = client.post("/api/predict", json=SAMPLE)
     data = r.json()
     assert r.status_code == 200
     assert data["status"] == "ok"
@@ -50,7 +49,7 @@ def test_predict():
 
 
 def test_life():
-    r = requests.post(f"{BASE}/api/life", json=SAMPLE)
+    r = client.post("/api/life", json=SAMPLE)
     data = r.json()
     assert r.status_code == 200
     assert data["status"] == "ok"
@@ -62,18 +61,11 @@ def test_life():
 def test_various_materials():
     for mat in ["carbon_steel", "stainless_steel", "coated"]:
         payload = {**SAMPLE, "pipe_material": mat}
-        r = requests.post(f"{BASE}/api/predict", json=payload)
+        r = client.post("/api/predict", json=payload)
         data = r.json()
         assert r.status_code == 200
         assert data["status"] == "ok"
         print(f"[PASS] predict with {mat} - rate={data['corrosion_rate_mpy']}")
-
-
-def test_home():
-    r = requests.get(f"{BASE}/")
-    assert r.status_code == 200
-    assert "H2S Corrosion" in r.text
-    print("[PASS] /")
 
 
 def main():
@@ -86,13 +78,8 @@ def main():
         test_predict()
         test_life()
         test_various_materials()
-        test_home()
         print("\nAll tests passed!")
-    except requests.ConnectionError:
-        print("ERROR: Cannot connect to Flask server at", BASE)
-        print("Start the server first: python app.py")
-        sys.exit(1)
-    except AssertionError as e:
+    except Exception as e:
         print(f"TEST FAILED: {e}")
         sys.exit(1)
 
