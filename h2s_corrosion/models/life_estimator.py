@@ -1,5 +1,3 @@
-"""Weibull analysis for remaining useful life estimation using lifelines."""
-
 import json
 import os
 import pickle

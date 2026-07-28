@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="h2s-corrosion-prediction",
-    version="1.0.0",
+    version="0.1",
     description="ML-based H2S corrosion prediction and remaining useful life estimation",
     author="Ing. Kelvin Cabrera",
     packages=find_packages(),

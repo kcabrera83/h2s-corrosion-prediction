@@ -1,5 +1,3 @@
-"""Synthetic H2S corrosion data generator."""
-
 import numpy as np
 import pandas as pd
 

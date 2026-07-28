@@ -1,5 +1,3 @@
-"""FastAPI for H2S corrosion prediction using scikit-survival + lifelines."""
-
 import os
 import pickle
 import numpy as np
@@ -11,7 +9,7 @@ from pydantic import BaseModel
 app = FastAPI(
     title="H2S Corrosion Prediction",
     description="Corrosion rate and remaining useful life prediction for H2S environments (scikit-survival + lifelines)",
-    version="2.0.0",
+    version="0.1",
 )
 
 app.add_middleware(

@@ -1,5 +1,3 @@
-"""Data preprocessing pipeline for corrosion models."""
-
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -61,7 +59,7 @@ class CorrosionPreprocessor:
         df[TARGET_LIFE] = np.clip(df[TARGET_LIFE], 0.1, 50.0)
         return df
 
-    def prepare(self, df, target=TARGET_CORROSION, test_size=0.2, random_state=42):
+    def prepare(self, df, target=TARGET_CORROSION, test_size=0.2, random_state=2024):
         """Return X_train, X_test, y_train, y_test, fitted pipeline."""
         df = self._derive_life(df.copy())
 

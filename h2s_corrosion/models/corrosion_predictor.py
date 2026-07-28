@@ -1,5 +1,3 @@
-"""Random Survival Forest for corrosion rate prediction using scikit-survival."""
-
 import json
 import os
 import pickle
@@ -27,7 +25,7 @@ class CorrosionPredictor:
             min_samples_split=10,
             min_samples_leaf=5,
             n_jobs=-1,
-            random_state=42,
+            random_state=2024,
         )
 
         y_struct = np.array(

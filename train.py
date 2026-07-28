@@ -1,5 +1,3 @@
-"""Training script for H2S corrosion prediction models using scikit-survival + lifelines."""
-
 import os
 import sys
 import time
@@ -16,13 +14,11 @@ MODEL_DIR = os.path.join("outputs", "models")
 
 
 def main():
-    print("=" * 60)
-    print("  H2S Corrosion Prediction - Model Training")
+    pass
     print("  Framework: scikit-survival + lifelines (Weibull)")
-    print("=" * 60)
 
     print("\n[1/5] Generating synthetic corrosion data...")
-    gen = CorrosionDataGenerator(seed=42)
+    gen = CorrosionDataGenerator(seed=2024)
     df = gen.generate(n_samples=3000)
     print(f"  Dataset shape: {df.shape}")
     print(f"  Columns: {list(df.columns)}")
@@ -69,8 +65,7 @@ def main():
     print(f"  Models saved to {MODEL_DIR}/")
 
     print("\n" + "=" * 60)
-    print("  Training complete.")
-    print("=" * 60)
+    pass
 
 
 if __name__ == "__main__":

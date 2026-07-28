@@ -1,5 +1,3 @@
-"""API integration tests for H2S Corrosion Prediction FastAPI app."""
-
 import sys
 from fastapi.testclient import TestClient
 
@@ -69,9 +67,7 @@ def test_various_materials():
 
 
 def main():
-    print("=" * 50)
-    print("  API Tests")
-    print("=" * 50)
+    pass
     try:
         test_health()
         test_models()
