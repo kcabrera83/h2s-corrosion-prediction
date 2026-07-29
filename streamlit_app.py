@@ -1,36 +1,52 @@
-import streamlit as st
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
+import streamlit as st, joblib, numpy as np, matplotlib.pyplot as plt
+from pathlib import Path; import sys; sys.path.insert(0, str(Path(__file__).parent))
 
 st.set_page_config(page_title="H2S Corrosion Prediction", layout="wide")
 st.title("H2S Corrosion Prediction")
-st.markdown("Predict H2S/CO2 corrosion rate and remaining pipe life.")
 
-import joblib, numpy as np
-d = Path(__file__).parent / 'outputs' / 'models'
-models = {'corrosion': joblib.load(d / 'corrosion_rate_model.pkl'), 'life': joblib.load(d / 'remaining_life_model.pkl')}
-
-st.sidebar.header("Input Parameters")
-h2s_ppm = st.sidebar.slider('H2S Ppm', 0, 500, 250)
-co2_pct = st.sidebar.slider('Co2 Pct', 0, 20, 10)
-temp_c = st.sidebar.slider('Temp C', 20, 150, 85)
-pressure_mpa = st.sidebar.slider('Pressure Mpa', 0, 50, 25)
-ph = st.sidebar.slider('Ph', 3, 10, 6)
-flow_velocity = st.sidebar.slider('Flow Velocity', 0, 10, 5)
-pipe_material = st.sidebar.selectbox('Pipe Material', ['carbon_steel','stainless_steel','duplex','inconel'])
-
-if st.sidebar.button("Run"):
-    try:
-        x = np.array([[h2s_ppm, co2_pct, temp_c, pressure_mpa, ph, flow_velocity, pipe_material]])
-        cols = st.columns(2)
-        for i, (k, m) in enumerate(models.items()):
-            X = m['scaler'].transform(x)
-            p = m['model'].predict(X)
+class Engine:
+    def __init__(self):
+        p = Path(__file__).parent / 'outputs' / 'models'
+        self.corrosion = joblib.load(p / 'corrosion_rate_model.pkl')
+        self.life = joblib.load(p / 'remaining_life_model.pkl')
+    def run(self, name, X):
+        m = getattr(self, name)
+        if isinstance(m, dict):
+            x = m['scaler'].transform(X)
+            r = m['model'].predict(x)
             if 'label_encoder' in m:
-                val = m['label_encoder'].inverse_transform(p)[0]
-            else:
-                val = f'{p[0]:.2f}'
-            cols[i].metric(k.title(), val)
-    except Exception as e:
-        st.error(str(e))
+                return m['label_encoder'].inverse_transform(r)[0]
+            return float(r[0])
+        return float(m.predict(X)[0])
+
+eng = Engine()
+
+with st.sidebar:
+    st.header('Inputs')
+    h2s = st.slider('H2S', 0, 500, 250)
+    co2 = st.slider('Co2', 0, 20, 10)
+    temp = st.slider('Temp', 20, 150, 85)
+    pressure = st.slider('Pressure', 0, 50, 25)
+    ph = st.slider('Ph', 3, 10, 6)
+    velocity = st.slider('Velocity', 0, 10, 5)
+    material = st.selectbox('Material', ['carbon','stainless','duplex','inconel'])
+    go = st.button('Predict', type='primary', use_container_width=True)
+
+if go:
+    x = np.array([[h2s, co2, temp, pressure, ph, velocity, material]])
+    out = {}
+    out['corrosion'] = eng.run('corrosion', x)
+    out['life'] = eng.run('life', x)
+    cols = st.columns(len(out))
+    for i, (k, v) in enumerate(out.items()):
+        cols[i].metric(k.title(), str(v) if isinstance(v, str) else f'{v:.2f}')
+    nums = [v for v in out.values() if isinstance(v, (int, float))]
+    if nums:
+        fig, ax = plt.subplots(figsize=(6,2))
+        names = [k.title() for k, v in out.items() if isinstance(v, (int, float))]
+        colors = ['#2E86AB','#A23B72','#F18F01']
+        bars = ax.bar(names, nums, color=colors[:len(names)])
+        ax.axhline(y=sum(nums)/len(nums), color='gray', ls='--', alpha=0.5)
+        for bar, val in zip(bars, nums):
+            ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()*0.9, f'{val:.1f}', ha='center', va='top', color='white', fontweight='bold')
+        st.pyplot(fig)
