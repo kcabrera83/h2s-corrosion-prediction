@@ -22,3 +22,6 @@ outputs/models/*.json
 
 # Security & MLflow
 mlflow.db
+
+# Docs build
+site/
