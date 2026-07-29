@@ -1,5 +1,6 @@
 import streamlit as st
 import pickle
+import joblib
 import numpy as np
 import sys
 from pathlib import Path
@@ -12,7 +13,7 @@ st.markdown("Predict H2S/CO2 corrosion rate and remaining pipe life.")
 @st.cache_resource
 def load_models():
     d = Path(__file__).parent / "outputs" / "models"
-    return {k: pickle.load(open(d / v, "rb")) for k, v in [("corrosion", "corrosion_rate_model.pkl"), ("life", "remaining_life_model.pkl")]}
+    return {k: joblib.load(d / v) for k, v in [("corrosion", "corrosion_rate_model.pkl"), ("life", "remaining_life_model.pkl")]}
 
 models = load_models()
 
